@@ -72,11 +72,11 @@ class ATMRobberyScript:
         with mss() as sct:
             shot = sct.grab(sct.monitors[1])
             arr = np.array(shot)              # BGRA
-            b, g, r, a = arr[y, x]       # pixel at (675, 540)
+            b, g, r, a = arr[y, x+x_offset]       # pixel at (675, 540)
             return (r, g, b)
         
     def getpixel(self, arr, x, y):
-        b, g, r, a = arr[y, x]       # pixel at (675, 540)
+        b, g, r, a = arr[y, x+x_offset]       # pixel at (675, 540)
         return (r, g, b)
 
     def fast_click(self, x=None, y=None):
@@ -132,12 +132,12 @@ class ATMRobberyScript:
     def is_robbery_active(self, arr=None):
         if not arr:
             arr = self.screenshot()
-        return self.getpixel(arr, 549+x_offset,813) == (27,42,53) and self.getpixel(arr, 978,390) == (0,0,0)
+        return self.getpixel(arr, 549,266) == (27,42,53) and self.getpixel(arr, 978,390) == (0,0,0)
     
     def is_robbery_failed(self, arr=None):
         if not arr:
             arr = self.screenshot()
-        return self.getpixel(arr, 549+x_offset,813) == (27,42,53) and self.getpixel(arr, 948,307) == (193,34,34)
+        return self.getpixel(arr, 549,266) == (27,42,53) and self.getpixel(arr, 948,307) == (193,34,34)
 
     def rgb_to_url(self, rgb):
         hex_code = f'{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}'
