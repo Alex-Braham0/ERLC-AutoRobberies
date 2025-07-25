@@ -6,6 +6,8 @@ from PIL import Image
 import win32api
 import win32con
 
+x_offset = 0
+
 # House robbery 5 minute cooldown
 
 # do direction detection for pins
@@ -134,7 +136,7 @@ class LockpickScript:
             #     b, g, r, a = arr[540, 675]       # pixel at (675, 540)
             #     rgb = (r, g, b)
             #     print(rgb)
-            if self.getpixel(arr, 675, 540) != (255, 201, 3):
+            if self.getpixel(arr, 675+x_offset, 540) != (255, 201, 3):
                 if index == 0:
                     successful = False
                 else:
@@ -158,7 +160,7 @@ class LockpickScript:
             arr = self.screenshot()
             while not valid_pin:
                 
-                if self.brightness(self.getpixel(arr, pin, 539)) > self.brightness((130, 130, 130)) and self.brightness(self.getpixel(arr, pin, 541)) > self.brightness((130, 130, 130)):
+                if self.brightness(self.getpixel(arr, pin+x_offset, 539)) > self.brightness((130, 130, 130)) and self.brightness(self.getpixel(arr, pin+x_offset, 541)) > self.brightness((130, 130, 130)):
                     pin_over_line = True
                 if not pin_over_line and wait_for_clear:
                     wait_for_clear = False

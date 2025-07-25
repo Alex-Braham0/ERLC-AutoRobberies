@@ -9,6 +9,8 @@ import win32con
 
 # Atm robbery 6 min cooldown
 
+x_offset = 0
+
 # use mss instead
 # fix timeout
 
@@ -130,12 +132,12 @@ class ATMRobberyScript:
     def is_robbery_active(self, arr=None):
         if not arr:
             arr = self.screenshot()
-        return self.getpixel(arr, 549,813) == (27,42,53) and self.getpixel(arr, 978,390) == (0,0,0)
+        return self.getpixel(arr, 549+x_offset,813) == (27,42,53) and self.getpixel(arr, 978,390) == (0,0,0)
     
     def is_robbery_failed(self, arr=None):
         if not arr:
             arr = self.screenshot()
-        return self.getpixel(arr, 549,813) == (27,42,53) and self.getpixel(arr, 948,307) == (193,34,34)
+        return self.getpixel(arr, 549+x_offset,813) == (27,42,53) and self.getpixel(arr, 948,307) == (193,34,34)
 
     def rgb_to_url(self, rgb):
         hex_code = f'{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}'
