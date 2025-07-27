@@ -159,7 +159,7 @@ class ATMRobberyScript:
         no_of_codes = 5
         code = 0
         # timeout = False
-        while self.is_robbery_active(): # decode each of the 5 codes
+        while self.is_robbery_active():# and not timeout: # decode each of the 5 codes
 
             code_colours = self.get_current_code_colour()
             valid_colour_index = self.is_code_colour_valid(code_colours)
@@ -172,9 +172,8 @@ class ATMRobberyScript:
             print("Found current Code location")
 
             notClicked = True
-            start = datetime.now()
-            timeout = False
-            while notClicked:# and not timeout:
+            start = time.time()
+            while notClicked and time.time() - start < 10:
                 # Click when specified location matches colour
                 
                 arr = self.screenshot()
@@ -185,12 +184,14 @@ class ATMRobberyScript:
                     notClicked = False
                     code += 1
                     time.sleep(0.05)
-                else:
-                    timeout = datetime.now() - start > timedelta(seconds=30)
+                # else:
+                #     timeout = time.time() - start > 10
 
         # if not timeout:
         failed = self.is_robbery_failed()
 
+        # if timeout:
+        #     print("ATM Timed Out")
         if not failed:
             print("ATM Completed")
         return True

@@ -7,7 +7,7 @@ import win32api
 import win32con
 
 # House robbery 5 minute cooldown
-x_offset = 0
+
 # do direction detection for pins
 
 class LockpickScript:
@@ -28,11 +28,11 @@ class LockpickScript:
         with mss() as sct:
             shot = sct.grab(sct.monitors[1])
             arr = np.array(shot)              # BGRA
-            b, g, r, a = arr[y, x+x_offset]       # pixel at (675, 540)
+            b, g, r, a = arr[y, x]       # pixel at (675, 540)
             return (r, g, b)
         
     def getpixel(self, arr, x, y):
-        b, g, r, a = arr[y, x+x_offset]       # pixel at (675, 540)
+        b, g, r, a = arr[y, x]       # pixel at (675, 540)
         return (r, g, b)
 
     def fast_click(self, x=None, y=None):
@@ -46,71 +46,71 @@ class LockpickScript:
         img = Image.fromarray(arr)
         img.save(filename)
 
-    def binary_search_pixel(self, arr, pin_index, y_min, y_max, threshold_rgb, direction="up"):
-        result = None
-        threshold = self.brightness(threshold_rgb)
-
-        while y_min + self.pinSizes[pin_index] <= y_max:
-            y_mid = (y_min + y_max) // 2
-            b, g, r, _ = arr[y_mid, self.pinLocations[pin_index]]
-            current_brightness = self.brightness((r, g, b))
-
-            if current_brightness > threshold:
-                result = y_mid
-                if direction == "up":
-                    y_min = y_mid + 1  # search higher
-                else:
-                    y_max = y_mid - 1  # search lower
-            else:
-                if direction == "up":
-                    y_max = y_mid - 1
-                else:
-                    y_min = y_mid + 1
-
-        return result
-
     def brightness(self, rgb):
         r, g, b = rgb
         return 0.2126*r + 0.7152*g + 0.0722*b  # luminance
 
-    def find_pin(self, pin_index, arr):
-        high = None
-        low = None
+    def lightness(self, rgb):
+        r, g, b = rgb
+        return (max(r, g, b) + min(r, g, b)) / 2
 
-        high = self.binary_search_pixel(arr, pin_index, 379, 539, (140, 140, 140), "up")
-        low = self.binary_search_pixel(arr, pin_index, 541, 700, (140, 140, 140), "down")
-        # print(f"{high}, {low}")
+
+    def find_pin(self, arr, pin_index):
+        threshold = (100,100,100)
+        # high = self.binary_search_pixel(arr, pin_index, 379, 539, threshold, "low")
+        # low = self.binary_search_pixel(arr, pin_index, 541, 700, threshold, "high")
+
+        high = self.linear_search_pixel(arr, pin_index, 379, 539, threshold, "positive")
+        low = self.linear_search_pixel(arr, pin_index, 541, 700, threshold, "negative")
         return (high, low)
-
-    def calculate_average_speed(self, past_locations):
-        speeds = []
-        for location_index in range(1, len(past_locations)):
-            speeds.append(abs(past_locations[location_index-1]-past_locations[location_index]))
-        return sum(speeds)/len(speeds)
     
-    def calculate_direction(self, last_location, location):
-        down_direction = None
-        if (last_location[0] != None and location[0] == None) or (last_location[1] == None and location[1] != None):
-            down_direction = True
-        elif (last_location[0] == None and location[1] != None) or (last_location[1] != None and location[1] == None):
-            down_direction = False
-        elif last_location[0] != None and location[0] != None and (last_location[0] < location[0]):
-            down_direction = True
-        elif last_location[1] != None and location[1] != None and (last_location[1] < location[1]):
-            down_direction = True
-        elif last_location[0] != None and location[0] != None and (last_location[0] > location[0]):
-            down_direction = False
-        elif last_location[1] != None and location[1] != None and (last_location[1] > location[1]):
-            down_direction = False
-        elif last_location[0] == 379 and location[0] == 379:
-            down_direction = True
-        elif last_location[0] == 700 and location[0] == 700:
-            down_direction = True
+    def linear_search_pixel(self, arr, pin_index, y_min, y_max, threshold_rgb, direction="positive"):
+        result = None
+        threshold = self.brightness(threshold_rgb)
+        if direction == "positive":
+            range_y = range(y_min, y_max + 1)
         else:
-            print("Error:")
-            print(f"last loc: {last_location}")
-            print(f"current loc: {location}")
+            range_y = range(y_max, y_min - 1, -1)
+
+        for y in range_y:
+            if self.brightness(self.getpixel(arr, self.pinLocations[pin_index], y)) > threshold:
+                result = y
+                break
+        return result
+
+    def calc_pin_direction(self, pin_location, last_location):
+        down_direction = None
+        if pin_location[0] != None and last_location[0] != None:
+            if pin_location[0] < last_location[0]:
+                down_direction = False
+            elif pin_location[0] > last_location[0]:
+                down_direction = True
+        elif pin_location[1] != None and last_location[1] != None:
+            if pin_location[1] < last_location[1]:
+                down_direction = False
+            elif pin_location[1] > last_location[1]:
+                down_direction = True
+        elif (pin_location[1] == None and last_location[1] != None) or (pin_location[1] != None and last_location[1] == None):
+            down_direction = True
+        elif (pin_location[0] == None and last_location[0] != None) or (pin_location[0] != None and last_location[0] == None):
+            down_direction = False
+        else:
+            print("Direction not detected")
+        # print(f"Direction: {down_direction}")
         return down_direction
+
+    def calc_pin_speed(self, pin_location, last_location):
+        speed = None
+        if pin_location[0] != None and last_location[0] != None:
+            speed = abs(pin_location[0]-last_location[0])
+        elif pin_location[1] != None and last_location[1] != None:
+            speed = abs(pin_location[1]-last_location[1])
+        else:
+            print("Speed not detected")
+            print(f"Current: {pin_location}")
+            print(f"Last: {last_location}")
+        # print(f"Speed: {speed}")
+        return speed
 
     def run(self):
         # Displaying a countdown message before starting the main loop
@@ -128,12 +128,6 @@ class LockpickScript:
             arr = self.screenshot()
             # Checking if the color at a specific location indicates an ongoing robbery
 
-            # with mss() as sct:
-            #     shot = sct.grab(sct.monitors[1])
-            #     arr = np.array(shot)              # BGRA
-            #     b, g, r, a = arr[540, 675]       # pixel at (675, 540)
-            #     rgb = (r, g, b)
-            #     print(rgb)
             if self.getpixel(arr, 675, 540) != (255, 201, 3):
                 if index == 0:
                     successful = False
@@ -144,85 +138,44 @@ class LockpickScript:
             
             # Displaying the current pin being processed
             print(f"Pin {index+1}")
-
-            # Waiting for pin and target line to overlap
-            # pin_over_lin = False
-            
-            # past_locations = []
-            # location = self.find_pin(index, arr)
-            # while not pin_over_lin:#self.getpixel(arr, pin, 530) != (165, 165, 165) and self.getpixel(arr, pin, 550) != (165, 165, 165):
-            
-            valid_pin = False
-            pin_over_line = None
-            wait_for_clear = True
+            ready_to_click = False
             arr = self.screenshot()
-            while not valid_pin:
+            pin_location = self.find_pin(arr, index)
+            down_direction = True
+            speed = 0
+            while not ready_to_click:
+
+                last_location = pin_location
+                pin_location = self.find_pin(arr, index)
                 
-                if self.brightness(self.getpixel(arr, pin, 539)) > self.brightness((130, 130, 130)) and self.brightness(self.getpixel(arr, pin, 541)) > self.brightness((130, 130, 130)):
-                    pin_over_line = True
-                if not pin_over_line and wait_for_clear:
-                    wait_for_clear = False
-                valid_pin = pin_over_line and not wait_for_clear
-                time.sleep(0.01)
-                arr = self.screenshot()
-            self.fast_click()
-            self.save_np_as_png(arr, f"fast-{index+1}.png")
-
-                # past_locations.append(location)
-                # if len(past_locations) > 10:
-                #     past_locations.pop(0)
+                new_direction = self.calc_pin_direction(pin_location, last_location)
+                if new_direction != None:
+                    down_direction = new_direction
+                new_speed = self.calc_pin_speed(pin_location, last_location)
+                if new_speed != None:
+                    speed = new_speed
                 
-                # location = self.find_pin(index, arr)
+                if down_direction:
+                    if pin_location[0] != None and pin_location[0]+self.pinSizes[index] < 539 and pin_location[0]+self.pinSizes[index] > 540-speed and speed <100:
+                        # print(pin_location)
+                        # print(f"Going Down at {speed}")
+                        print("Click")
+                        ready_to_click = True
+                         
+                else:
+                    if pin_location[1] != None and pin_location[1]-self.pinSizes[index] > 539 and pin_location[1]-self.pinSizes[index] < 540+speed and speed <100:
+                        # print(pin_location)
+                        # print(f"Going Up at {speed}")
+                        print("Click")
+                        ready_to_click = True
 
-                # if past_locations[-1] == (None, None) or location == (None, None):
-                #     self.save_np_as_png(arr, f"error.png")
-                #     continue
-                
-                # if len(past_locations) < 2:
-                #     continue
-
-                # # print(past_locations[-1], location)
-                # # print("last check")
-                # down_direction=self.calculate_direction(past_locations[-1], location)
-                # if down_direction == None:
-                #     continue
-                # if down_direction: # Moving Down
-
-                #     if location[1] != None and past_locations[-1][1] == None:
-                #         print("Click")
-                #         pin_over_lin = True
-                #     # if location[0] != None and past_locations[-1][0] != None and past_locations[-1][1] == None and ((location[1] != None and location[1] == 541 and past_locations[-1][0] < 539) or (location[0] < 539 and location[0] > 540-(540-past_locations[-1][0])/2)):
-                #     #     print("Click")
-                #     #     pin_over_lin = True
-                #         # self.save_np_as_png(arr, f"click-{location}.png")
-
-                # else:
-                #     if location[0] != None and past_locations[-1][0] == None:
-                #         print("Click")
-                #         pin_over_lin = True
-                    # if location[1] != None and past_locations[-1][1] != None and past_locations[-1][0] == None and ((location[0] != None and location[0] == 539 and past_locations[-1][1] > 541) or (location[1] > 541 and location[1] < 540+(540-past_locations[-1][1])/2)):
-                    #     print("Click")
-                    #     pin_over_lin = True
-
-
-                    # print(abs(past_locations[-1]-location) < speed*1.3)
-                    # if location >= 540-(past_locations[-1]-location)/2 and past_locations[-1] < 540:# and abs(past_locations[-1]-location) < speed*1.75:#-self.pinSizes[index]//2:
-                    #     print("Click")
-                    #     self.save_np_as_png(arr, f"click.png")
-                    #     exit()
-                        # pin_over_lin = True
-                # elif not down_direction: # Moving up
-                #     if location <= 540+(past_locations[-1]-location)/2 and past_locations[-1] > 540  and abs(past_locations[-1]-location) < speed*1.3:#+self.pinSizes[index]//2:
-                #         pin_over_lin = True
-
-            # print(location)
-            # print(past_locations)
-            # print(f"Direction: {'Down' if down_direction else 'Up'}")
-            # self.fast_click()
-            # # pydirectinput.click()
-            # self.save_np_as_png(arr, f"fast-{index+1}.png")
+                if not ready_to_click:
+                    arr = self.screenshot()
             
-            # time.sleep(0.1)
+            self.fast_click()
+            # self.save_np_as_png(arr, f"fast-{index+1}.png")
+
+            time.sleep(0.05)
 
         time.sleep(0.05)
         
@@ -230,7 +183,6 @@ class LockpickScript:
             failed = self.check_for_fail_notif()
             
         # Displaying a message when the main loop exits
-
         start_countdown = successful and not failed
 
         if successful and not failed:
